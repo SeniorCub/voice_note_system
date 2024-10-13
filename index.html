@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Note System</title>
+</head>
+<body>
+     <h1>Voice Note System</h1>
+
+    <!-- Buttons for recording and playback -->
+    <button id="record-btn">Start Recording</button>
+    <button id="stop-btn" disabled>Stop Recording</button>
+    <button id="play-btn" disabled>Play Voice Note</button>
+    <button id="upload-btn" disabled>Upload Voice Note</button>
+
+    <script>
+          let mediaRecorder;
+          let audioChunks = [];
+          let audioBlob;
+          let audioURL;
+          let audio;
+          
+          const recordBtn = document.getElementById('record-btn');
+          const stopBtn = document.getElementById('stop-btn');
+          const playBtn = document.getElementById('play-btn');
+          const uploadBtn = document.getElementById('upload-btn');
+          
+          recordBtn.addEventListener('click', () => {
+          // Clear the previous audio chunks before starting a new recording
+          audioChunks = [];
+          
+          navigator.mediaDevices.getUserMedia({ audio: true })
+               .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+                    recordBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    playBtn.disabled = true; // Disable the play button during recording
+                    uploadBtn.disabled = true; // Disable the upload button during recording
+                     // Enable the pause button during recording
+          
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                         audioChunks.push(event.data);
+                    });
+          
+                    mediaRecorder.addEventListener('stop', () => {
+                         audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                         audioURL = URL.createObjectURL(audioBlob);
+                         audio = new Audio(audioURL);
+          
+                         stopBtn.disabled = true;
+                         playBtn.disabled = false;  // Enable the play button after recording
+                         uploadBtn.disabled = false; // Enable the upload button after recording
+                         // Disable the pause button after recording
+                    });
+               })
+               .catch(err => {
+                    console.error('Error accessing audio stream:', err);
+               });
+          });
+          
+          stopBtn.addEventListener('click', () => {
+          mediaRecorder.stop();
+          recordBtn.disabled = false;
+          });
+          
+          playBtn.addEventListener('click', () => {
+          if (audio) {
+               audio.play();
+          }
+          });
+          
+          uploadBtn.addEventListener('click', () => {
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'voice_note.wav'); // Append the current audio blob to the form
+          
+          fetch('http://localhost/voice_note_system/upload.php', {
+               method: 'POST',
+               body: formData
+          })
+          
+          .then(response => response.text())
+          .then(data => {
+               console.log('Server response:', data); // Check the server response
+               alert('Voice note uploaded successfully!');
+          
+               // Clear the previous recording after successful upload
+               audioChunks = [];
+               audioBlob = null;
+               audioURL = null;
+               audio = null;
+          
+               // Disable play and upload buttons after upload
+               playBtn.disabled = true;
+               uploadBtn.disabled = true;
+          })
+          .catch(err => {
+               console.error('Error uploading file:', err);
+          });
+          });
+    </script>
+</body>
+</html>
